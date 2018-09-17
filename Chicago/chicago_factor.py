@@ -32,39 +32,58 @@ dy.loc[:, pt] -= mn
 
 # Get the PC's
 cm = np.dot(dy.loc[:, pt].T, dy.loc[:, pt]) / dy.shape[0]
-b, e = np.linalg.eig(cm)
-ii = np.argsort(-b)
-b = b[ii]
-e = e[:, ii]
+ev, eg = np.linalg.eig(cm)
+ii = np.argsort(-ev)
+ev = ev[ii]
+eg = eg[:, ii]
 
-# Keep the top 3 PC's
-edf = pd.DataFrame(e[:, 0:3], index=pt)
+# Keep the top 4 PC's
+edf = pd.DataFrame(eg[:, 0:4], index=pt)
+
+print("Eigenvalues: ", ev, "\n")
+print("Eigenvectors:\n", edf)
 
 # Show how the PC's are related to the mean
 mn_norm = mn / np.sqrt(np.sum(mn**2))
 print(np.dot(mn_norm, edf))
 
-for k in range(3):
-    dy["score_%d" % k] = np.dot(dy.loc[:, pt], e[:, k])
+for k in range(4):
+    dy["score_%d" % k] = np.dot(dy.loc[:, pt], eg[:, k])
 
+# Reconstruct some things we need for the regressions
 dy["Year"] = dy.Date.dt.year
 dy["DayOfYear"] = dy.Date.dt.dayofyear
 dy["DayOfWeek"] = dy.Date.dt.dayofweek
 
-for k in range(3):
+# Regress each PC score on space and time variables to see how they
+# are related
+for k in range(4):
 
+    # Time-only model
     fml0 = "score_%d ~ bs(Year, 4) + bs(DayOfYear, 10) + C(DayOfWeek)" % k
     model0 = sm.OLS.from_formula(fml0, data=dy)
     result0 = model0.fit()
-    #print(result0.summary())
 
     if spacetime:
-        fml = "score_%d ~ bs(Year, 4) + bs(DayOfYear, 10) + C(DayOfWeek) + C(CommunityArea)" % k
-        model = sm.OLS.from_formula(fml, data=dy)
-        result = model.fit()
-        #print(result.summary())
 
+        # Space-only model
+        fml1 = "score_%d ~ C(CommunityArea)" % k
+        model1 = sm.OLS.from_formula(fml1, data=dy)
+        result1 = model1.fit()
+
+        # Space/timemodel
+        fml2 = "score_%d ~ bs(Year, 4) + bs(DayOfYear, 10) + C(DayOfWeek) + C(CommunityArea)" % k
+        model2 = sm.OLS.from_formula(fml2, data=dy)
+        result2 = model2.fit()
+
+        # Partial R^2 for space over time
         r0 = result0.rsquared
-        r1 = result.rsquared
+        r1 = result2.rsquared
         pr = (r1 - r0) / (1 - r0)
+        print("Factor %d" % (k + 1))
         print("Partial R^2 for space: %f" % pr)
+
+        # Partial R^2 for time over space
+        r0 = result1.rsquared
+        pr = (r1 - r0) / (1 - r0)
+        print("Partial R^2 for time: %f\n" % pr)
