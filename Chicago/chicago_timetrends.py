@@ -79,7 +79,7 @@ for pt, dz in cdat.groupby("PrimaryType"):
             p = 100
             dp = cdat.iloc[0:p, :].copy()
             dp.Year = 2015
-            dp.DayOfWeek = "Su"
+            dp.DayOfWeek = 6 # Sunday
             dp.CommunityArea = 1
             dp.DayOfYear = 180
 
@@ -151,7 +151,7 @@ for pt, dz in cdat.groupby("PrimaryType"):
             plt.axes([0.15, 0.1, 0.78, 0.8])
             plt.grid(True)
             lpra, xma = [], []
-            for u in ("Su", "Mo"):
+            for u in (6, 0): # Sunday and Monday
                 dp[vn] = u
                 pr = result.predict(exog=dp)
                 lpr = np.log(pr)
