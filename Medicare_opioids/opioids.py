@@ -217,7 +217,11 @@ pmeresults = pmemodels.fit()
 y, x = patsy.dmatrices("log_op_z ~ 0 + log_nonop_z + C(provider_type)", data=dr,
                        return_type='dataframe')
 xa = np.asarray(x)
+xa -= xa.mean(0)
+xa /= xa.std(0)
 ya = np.asarray(y)[:,0]
+ya -= ya.mean()
+ya /= ya.std()
 xnames = x.columns.tolist()
 alphas, active, coefs = linear_model.lars_path(xa, ya, method='lars', verbose=True)
 
@@ -249,31 +253,44 @@ for k in range(1, 20):
 pa = pd.Series(coefs[:, 15], index=xnames)
 pa = pa[pa != 0]
 
-# Merge procedure types
+#
+# Procedure type analysis
+#
+
+# Count the number of times each provider perfoerms each procedure type
 du = db.groupby(["npi", "hcpcs_code"])["line_srvc_cnt"].agg(np.sum)
 du = du.unstack(fill_value=0)
 
+# Use SVD to form composite variables of the procedure data
 from sklearn.decomposition import TruncatedSVD
 svd = TruncatedSVD(n_components=50, n_iter=7, random_state=42)
 xr = svd.fit_transform(du.values)
 xr = pd.DataFrame(xr, index=du.index)
 xr.columns = ["proc_%02d" % k for k in range(xr.shape[1])]
+
+# Remove any existing 'proc' variables from dr so we can merge in the new proc composite
+# variables
 for c in dr.columns:
     if c.startswith("proc"):
         dr = dr.drop(c, axis=1)
 dr = pd.merge(dr, xr, left_on="npi", right_index=True)
-ps = " + ".join(xr.columns.tolist())
 
+# Use LARS to get the solution path for procedure types
+ps = " + ".join(xr.columns.tolist())
 y, x = patsy.dmatrices("log_op_z ~ 0 + log_nonop_z + %s" % ps,
                        data=dr, return_type='dataframe')
 xa = np.asarray(x)
 ya = np.asarray(y)[:,0]
+xa -= xa.mean(0)
+xa /= xa.std(0)
+ya -= ya.mean()
+ya /= ya.std()
 xnames = x.columns.tolist()
 alphas, active, coefs = linear_model.lars_path(xa, ya, method='lars', verbose=True)
 
 # Display the first few variables selected by lars and the fitted
 # correlation.
-for k in range(1, 60):
+for k in range(1, 50):
     print(xnames[active[k-1]])
     f = np.dot(xa, coefs[:, k])
     print(k, np.corrcoef(ya, f)[0, 1])
