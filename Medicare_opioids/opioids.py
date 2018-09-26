@@ -7,6 +7,7 @@ from sklearn import linear_model
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
+# Read the medications file
 med_file = "PartD_Prescriber_PUF_NPI_Drug_15.txt.gz"
 dfx = pd.read_csv(med_file, delimiter="\t")
 
@@ -27,6 +28,7 @@ ds = ds.reset_index()
 dr = pd.merge(dr, ds, left_on="npi", right_on="npi")
 dr = dr.rename(columns={"nppes_provider_state": "state", "nppes_provider_city": "city"})
 
+# Drop providers who never prescribe opioids, or who never prescribe any drugs.
 dr = dr.loc[dr.Opioids > 0, :]
 dr = dr.loc[dr.Non_opioids > 0, :]
 
@@ -46,7 +48,7 @@ dr = dr.dropna()
 
 pdf = PdfPages("opioids.pdf")
 
-# Plot log/log data
+# Plot overall log/log data
 plt.clf()
 plt.plot(dr.log_op, dr.log_nonop, 'o', color='orange', alpha=0.3, rasterized=True)
 plt.xlabel("Non-opioid days supply")
@@ -63,7 +65,7 @@ olsresultz = olsmodelz.fit()
 
 # Fit log opioid versus non-opioid volume separately by state
 plt.clf()
-xr = np.linspace(-4, 4, 20)
+bxr = np.linspace(-4, 4, 20)
 state_params = []
 for dy in dr.groupby("state"):
     sn = dy[0] # State abbreviation
@@ -72,7 +74,7 @@ for dy in dr.groupby("state"):
     result = model.fit()
     params = result.params.values
     state_params.append(params)
-    plt.plot(xr, params[0] + params[1]*xr, '-', color='grey')
+    plt.plot(bxr, params[0] + params[1]*bxr, '-', color='grey')
 plt.title("Trends by state")
 plt.xlabel("Log non-opioid days supply (Z-score)")
 plt.ylabel("Log opioid days supply (Z-score)")
@@ -91,7 +93,7 @@ feresultz = femodelz.fit()
 femodelsz = sm.OLS.from_formula("log_op_z ~ log_nonop_z * C(state)", data=dr)
 feresultsz = femodelsz.fit()
 
-# Compare state intercepts
+# Pairwise comparison of state intercepts, for every pair of states
 pa = feresultz.params
 vc = feresultz.cov_params()
 ii = [i for i,x in enumerate(pa.index) if x.startswith("C(state")]
@@ -108,7 +110,7 @@ for i1 in range(len(pa)):
 j1, j2 = np.tril_indices(len(pa), -1)
 statepair_icept_z = zc[j1, j2]
 
-# Compare state slopes
+# Pairwise comparison of state slopes, for every pair of states
 pa = feresultsz.params
 vc = feresultsz.cov_params()
 ii = [i for i,x in enumerate(pa.index) if x.startswith("log_nonop_z:C(state")]
@@ -135,18 +137,18 @@ dr["fit"] = feresult.fittedvalues
 dr["bin"] = pd.qcut(dr.fit, 20)
 meanvar_states = dr.groupby("bin")["fit", "log_op"].agg({"fit": np.mean, "log_op": np.var})
 
-# Basic mixed model (random intercepts by state)
+# Basic mixed model with intercepts that vary by state ("random intercepts")
 memodel_i = sm.MixedLM.from_formula("log_op_z ~ log_nonop_z", groups="state", data=dr)
 meresult_i = memodel_i.fit()
 
-# Allow slopes to vary by state
+# Mixed model wit slopes that vary by state ("random slopes")
 memodel_is = sm.MixedLM.from_formula("log_op_z ~ log_nonop_z", groups="state",
                                    vc_formula={"i": "0 + C(state)", "s": "0+log_nonop:C(state)"},
                                    data=dr)
 meresult_is = memodel_is.fit()
 
 # Basic mixed model for cities (random intercepts by city)
-# too slow
+# too slow to run
 #memodel_c = sm.MixedLM.from_formula("log_op_z ~ log_nonop_z", groups="city", data=dr)
 #meresult_c = memodel_c.fit()
 
@@ -157,7 +159,7 @@ du = db.groupby("npi")["provider_type"].agg("first")
 du = pd.DataFrame(du).reset_index()
 dr = pd.merge(dr, du, left_on="npi", right_on="npi")
 
-# Use lars to consider provider effects
+# Use LARS to consider provider effects
 y, x = patsy.dmatrices("log_op_z ~ 0 + log_nonop_z + C(provider_type)", data=dr,
                        return_type='dataframe')
 xa = np.asarray(x)
