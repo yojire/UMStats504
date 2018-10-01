@@ -94,11 +94,13 @@ femodelsz = sm.OLS.from_formula("log_op_z ~ log_nonop_z * C(state)", data=dr)
 feresultsz = femodelsz.fit()
 
 # Pairwise comparison of state intercepts, for every pair of states
+# Important to use centered (or Z-scored) data here so the intercepts
+# are inside the range of the data.
 pa = feresultz.params
 vc = feresultz.cov_params()
 ii = [i for i,x in enumerate(pa.index) if x.startswith("C(state")]
-pa = pa.iloc[ii].values
-vc = vc.iloc[ii, ii].values
+pa = pa.iloc[ii]
+vc = vc.iloc[ii, ii]
 zc = np.zeros((len(pa), len(pa)))
 for i1 in range(len(pa)):
     for i2 in range(len(pa)):
@@ -108,14 +110,17 @@ for i1 in range(len(pa)):
         se = np.sqrt(np.dot(d, np.dot(vc, d)))
         zc[i1, i2] = (pa[i1] - pa[i2]) / se
 j1, j2 = np.tril_indices(len(pa), -1)
-statepair_icept_z = zc[j1, j2]
+statepair_icept_z = pd.DataFrame({"State1": pa.index.values[j1],
+                                  "State2": pa.index.values[j2],
+                                  "Diff": zc[j1, j2]})
+statepair_icept_z = statepair_icept_z.sort_values(by="Diff")
 
 # Pairwise comparison of state slopes, for every pair of states
 pa = feresultsz.params
 vc = feresultsz.cov_params()
 ii = [i for i,x in enumerate(pa.index) if x.startswith("log_nonop_z:C(state")]
-pa = pa.iloc[ii].values
-vc = vc.iloc[ii, ii].values
+pa = pa.iloc[ii]
+vc = vc.iloc[ii, ii]
 zcx = np.zeros((len(pa), len(pa)))
 for i1 in range(len(pa)):
     for i2 in range(len(pa)):
@@ -125,7 +130,10 @@ for i1 in range(len(pa)):
         se = np.sqrt(np.dot(d, np.dot(vc, d)))
         zcx[i1, i2] = (pa[i1] - pa[i2]) / se
 j1, j2 = np.tril_indices(len(pa), -1)
-statepair_slope_z = zcx[j1, j2]
+statepair_slope_z = pd.DataFrame({"State1": pa.index.values[j1],
+                                  "State2": pa.index.values[j2],
+                                  "Diff": zcx[j1, j2]})
+statepair_slope_z = statepair_slope_z.sort_values(by="Diff")
 
 # Mean/variance analysis for basic model
 dr["fit"] = olsresult.fittedvalues
@@ -143,7 +151,7 @@ meresult_i = memodel_i.fit()
 
 # Mixed model wit slopes that vary by state ("random slopes")
 memodel_is = sm.MixedLM.from_formula("log_op_z ~ log_nonop_z", groups="state",
-                                   vc_formula={"i": "0 + C(state)", "s": "0+log_nonop:C(state)"},
+                                   vc_formula={"i": "0 + C(state)", "s": "0+log_nonop_z:C(state)"},
                                    data=dr)
 meresult_is = memodel_is.fit()
 
