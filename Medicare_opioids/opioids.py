@@ -149,7 +149,7 @@ meanvar_states = dr.groupby("bin")["fit", "log_op"].agg({"fit": np.mean, "log_op
 memodel_i = sm.MixedLM.from_formula("log_op_z ~ log_nonop_z", groups="state", data=dr)
 meresult_i = memodel_i.fit()
 
-# Mixed model wit slopes that vary by state ("random slopes")
+# Mixed model with slopes that vary by state ("random slopes")
 memodel_is = sm.MixedLM.from_formula("log_op_z ~ log_nonop_z", groups="state",
                                    vc_formula={"i": "0 + C(state)", "s": "0+log_nonop_z:C(state)"},
                                    data=dr)
@@ -237,6 +237,7 @@ alphas, active, coefs = linear_model.lars_path(xa, ya, method='lars', verbose=Tr
 
 # Display the first few variables selected by lars and the fitted
 # correlation.
+print("\nLARS path for state main effects:")
 for k in range(1, 20):
     print(xnames[active[k-1]])
     f = np.dot(xa, coefs[:, k])
@@ -255,6 +256,7 @@ alphas, active, coefs = linear_model.lars_path(xa, ya, method='lars', verbose=Tr
 
 # Display the first few variables selected by lars and the fitted
 # correlation.
+print("\nLARS path for provider type and state main effects:")
 for k in range(1, 20):
     print(xnames[active[k-1]])
     f = np.dot(xa, coefs[:, k])
@@ -267,7 +269,7 @@ pa = pa[pa != 0]
 # Procedure type analysis
 #
 
-# Count the number of times each provider perfoerms each procedure type
+# Count the number of times each provider performs each procedure type
 du = db.groupby(["npi", "hcpcs_code"])["line_srvc_cnt"].agg(np.sum)
 du = du.unstack(fill_value=0)
 
@@ -286,8 +288,8 @@ for c in dr.columns:
 dr = pd.merge(dr, xr, left_on="npi", right_index=True)
 
 # Use LARS to get the solution path for procedure types
-ps = " + ".join(xr.columns.tolist())
-y, x = patsy.dmatrices("log_op_z ~ 0 + log_nonop_z + %s" % ps,
+procs = " + ".join(xr.columns.tolist())
+y, x = patsy.dmatrices("log_op_z ~ 0 + log_nonop_z + %s" % procs,
                        data=dr, return_type='dataframe')
 xa = np.asarray(x)
 ya = np.asarray(y)[:,0]
@@ -300,7 +302,8 @@ alphas, active, coefs = linear_model.lars_path(xa, ya, method='lars', verbose=Tr
 
 # Display the first few variables selected by lars and the fitted
 # correlation.
-for k in range(1, 50):
+print("\nLARS path for procedure types:")
+for k in range(1, 10):
     print(xnames[active[k-1]])
     f = np.dot(xa, coefs[:, k])
     print(k, np.corrcoef(ya, f)[0, 1])
