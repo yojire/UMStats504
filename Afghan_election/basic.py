@@ -1,35 +1,36 @@
 import pandas as pd
-import numpy as np
+import statsmodels.api as sm
+from data import df
 
-# To obtain the data:
-# wget http://2014.afghanistanelectiondata.org/data/results/download/2014_afghanistan_election_results.csv
-# wget http://2014.afghanistanelectiondata.org/data/results/download/2014_afghanistan_preliminary_runoff_election_results.csv
+df = df.dropna()
 
+candidates1 = ['Hilal', 'Abdullah',
+              'Rassoul', 'Wardak', 'Karzai', 'Sayyaf', 'Ghani', 'Sultanzoy',
+              'Sherzai', 'Naeem', 'Arsala']
 
-fname1 = "2014_afghanistan_preliminary_runoff_election_results.csv"
-fname2 = "2014_afghanistan_election_results.csv"
+candidates2 = ['Abdullah_2', 'Ghani_2']
 
-df1 = pd.read_csv(fname1, encoding='latin1')
-df2 = pd.read_csv(fname2, encoding='latin1')
+# Look at the change in the turnout between rounds, in terms of
+# the round 1 totals for each candidate.
+df["Total_change"] = df.Total_2 - df.Total_1
+fml0 = "Total_change ~ " + " + ".join(candidates1)
+model0 = sm.OLS.from_formula(fml0, data=df)
+result0 = model0.fit()
 
-df1 = df1.set_index(["PC_number", "PS_number"])
-df2 = df2.set_index(["PC_number", "PS_number"])
+# Fit models for each round 2 candidate's vote totals in round 2 in terms
+# of the round 1 vote totals for all candidates.
 
-df1 = df1.rename(columns={'Total': 'Total_2',
-                          'Ghani': 'Ghani_2',
-                          'Abdullah': 'Abdullah_2',
-                          })
+fml0 = candidates2[0] + " ~ " + " + ".join(candidates1)
+model0 = sm.OLS.from_formula(fml0, data=df)
+result0 = model0.fit()
 
-df2 = df2.rename(columns={'province': 'Province', 'district': 'District',
-                          'Eng-Qutbuddin Hilal': "Hilal",
-                          'Dr. Abdullah Abdullah': 'Abdullah', 'Zalmai Rassoul': "Rassoul",
-                          'Abdul Rahim Wardak': 'Wardak', 'Quayum Karzai': "Karzai",
-                          'Prof-Abdo Rabe Rasool Sayyaf': "Sayyaf",
-                          'Dr. Mohammad Ashraf Ghani Ahmadzai': "Ghani",
-                          'Mohammad Daoud Sultanzoy': 'Sultanzoy',
-                          'Mohd. Shafiq Gul Agha Sherzai': "Sherzai",
-                          'Mohammad Nadir Naeem': "Naeem", 'Hedayat Amin Arsala': "Arsala",
-                          'Total': 'Total_1'})
+fml1 = candidates2[1] + " ~ " + " + ".join(candidates1)
+model1 = sm.OLS.from_formula(fml1, data=df)
+result1 = model1.fit()
 
-df = pd.merge(df1, df2, left_index=True, right_index=True, how='outer')
-df = df.reset_index()
+pa = pd.DataFrame({"Abdullah": result0.params, "Ghani": result1.params})
+
+# Use GEE to look at clustering of PS data within PC's.
+mgee = sm.GEE.from_formula(fml0, groups="PC_number", cov_struct=sm.cov_struct.Exchangeable(),
+                           data=df)
+rgee = mgee.fit()
