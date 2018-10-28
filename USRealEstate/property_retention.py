@@ -13,7 +13,7 @@ dx = deed.copy()
 dx = dx.rename(columns={"APN (Parcel Number) (unformatted)": "id", "SALE DATE": "date", "FIPS": "fips"})
 dx = dx.loc[:, ["id", "date", "fips"]]
 
-# Only consider transactions after 1960.
+# Only consider after 1960.
 dx = dx.loc[dx.date >= 0, :]
 
 # Time from one record to the one after it
@@ -22,7 +22,7 @@ dx['tdiff'] = dx.date.diff().shift(-1)
 # m is True on the last row of each group of records for one house
 m = dx.id != dx.id.shift(-1)
 
-# The last record for most houses is censored
+# Last record for most houses is censored
 y = (pd.to_datetime("2017-07-01") - pd.to_datetime("1960-01-01")).days
 dx['tdiff'][m] = y - dx['date'][m]
 
@@ -30,45 +30,27 @@ dx['tdiff'][m] = y - dx['date'][m]
 dx["status"] = 1
 dx["status"][m] = 0
 
-# Year of prior transaction
+# year of prior transaction
 dx["year"] = (pd.to_datetime("1960-01-01") + pd.to_timedelta(dx.date, 'd')).dt.year
 
-# Remove zero-time events, convert time to years
-dy = dx.loc[dx.tdiff > 0, :]
+dy = dx.loc[dx.tdiff > 0, :] # need to get to the bottom of this
 dy.tdiff /= 365.25
 
-# Overall survival function
 sf = sm.duration.SurvfuncRight(dy.tdiff, dy.status)
 
-# Survival functions per FIPS regions
 spr, spt = [], []
 for k,g in dy.groupby("fips"):
-
-    # Require at least 10 properties, else skip
-    # this FIPS region
     if g.shape[0] < 20:
         continue
-
-    # Estimate the survival function
     s0 = sm.duration.SurvfuncRight(g.tdiff, g.status)
-
-    # Restrict to FIPS regions where at least one property
-    # was held for 10 years
     if s0.surv_times.min() < 10 and s0.surv_times.max() > 10:
-
-        # Get an interpolated version of the survival function
         f = interp1d(s0.surv_times, s0.surv_prob)
-        if s0.surv_times.min() <= 1 and s0.surv_times.max() >= 15:
+        if s0.surv_times.min() <=1 and s0.surv_times.max() >= 15:
             spt.append([f(t) for t in range(1, 15)])
-
-        # Get the 10 year survival probability (i.e.
-        # probability that the same owner holds the
-        # propert for at least 10 years)
         g = interp1d(s0.surv_times, s0.surv_prob_se)
         se = float(g(10))
         if np.isfinite(se):
             spr.append([float(f(10)), float(g(10))])
-
 spr = np.asarray(spr)
 spt = np.asarray(spt)
 
@@ -79,16 +61,14 @@ spq -= spq.mean(0)
 cc = np.cov(spq.T)
 spc, s, vt = np.linalg.svd(cc, 0)
 
-# Proportional hazards regression looking at transaction
-# probability in terms of calendar time and time from
-# previous sale.
+# Proportional hazards regression looking at effects of calendar time
+# and time from previous sale.
 model = sm.PHReg.from_formula("tdiff ~ bs(year, 6)", status="status", data=dy)
 result = model.fit()
 bhaz = result.baseline_cumulative_hazard
 
 pdf = PdfPages("turnover.pdf")
 
-# Plot overall survival function
 plt.clf()
 plt.plot(sf.surv_times, sf.surv_prob, '-', rasterized=True)
 plt.xlabel("Years", size=15)
@@ -96,7 +76,6 @@ plt.ylabel("Probability not sold", size=15)
 plt.title("U.S. marginal survival function for home retention")
 pdf.savefig()
 
-# Plot 10-year survival probabilities by FIPS regions
 plt.clf()
 plt.title("10 year retention rate by FIPS")
 plt.hist(spr[:,0])
@@ -146,8 +125,6 @@ pdf.savefig()
 
 from scipy.misc import derivative
 
-# Get the hazard function estimatge by differentiating
-# the cumulative hazard estimate
 plt.clf()
 f = interp1d(bhaz[0][0], bhaz[0][1])
 xh = np.linspace(1, 40, 40)
