@@ -69,33 +69,50 @@ bhaz = result.baseline_cumulative_hazard
 
 pdf = PdfPages("turnover.pdf")
 
+# Plot the estimate of the overall marginal survival function
 plt.clf()
 plt.plot(sf.surv_times, sf.surv_prob, '-', rasterized=True)
 plt.xlabel("Years", size=15)
 plt.ylabel("Probability not sold", size=15)
 plt.title("U.S. marginal survival function for home retention")
+plt.grid(True)
 pdf.savefig()
 
+# Histogram of 10-year retention rates
 plt.clf()
 plt.title("10 year retention rate by FIPS")
-plt.hist(spr[:,0])
+plt.hist(spr[:,0], normed=True)
+
+# Estimate the structural variance of the parameters
+# and plot it as a normal density
+va = np.var(spr[:, 0]) - np.mean(spr[:, 1]**2)
+sd = np.sqrt(va)
+mu = spr[:, 0].mean()
+x = np.linspace(spr[:, 0].min(), spr[:, 0].max(), 30)
+y = np.exp(-0.5*(x - mu)**2 / sd**2) / np.sqrt(2 * np.pi * sd**2)
+plt.plot(x, y, '-', color='orange', lw=4)
+
 plt.xlabel("Rate", size=15)
 plt.ylabel("Frequency", size=15)
 pdf.savefig()
 
+# Plot all estimated survival functions for counties, after transformation
 plt.clf()
 y = np.arange(1, 15)
 plt.title("Transformed survivor functions by FIPS region")
 for i in range(spq.shape[0]):
     plt.plot(y, spq[i, :], color='grey', alpha=0.5)
+plt.grid(True)
 plt.xlabel("Years since purchase", size=15)
 plt.ylabel("Logit probability not sold (centered)", size=15)
 pdf.savefig()
 
+# Plot the dominant two PC's of the transformed survival functions
 plt.clf()
 plt.title("PC's of FIPS-level survival functions")
 plt.plot(spc[:,0])
 plt.plot(spc[:,1])
+plt.grid(True)
 plt.xlabel("Time", size=15)
 plt.ylabel("Loading", size=15)
 pdf.savefig()
@@ -109,11 +126,13 @@ for k in 0,1:
         plt.plot(y, spt[i, :], color='blue', alpha=0.5)
     for i in ii[-20:]:
         plt.plot(y, spt[i, :], color='red', alpha=0.5)
+    plt.grid(True)
     plt.xlabel("Years since purchase", size=15)
     plt.ylabel("Probability not sold", size=15)
     plt.title("Top/bottom 20 for PC %d" % (k + 1))
     pdf.savefig()
 
+# Plot the hazard ratio for year of purchase
 plt.clf()
 y = np.asarray(dy.year)[0::50]
 z = result.predict().predicted_values[0::50]
@@ -121,15 +140,34 @@ ii = np.argsort(y)
 plt.ylabel("Log hazard ratio", size=15)
 plt.xlabel("Year", size=15)
 plt.plot(y[ii], z[ii], '-', rasterized=True)
+plt.grid(True)
 pdf.savefig()
 
 from scipy.misc import derivative
 
+# Plot the baseline hazard function
 plt.clf()
 f = interp1d(bhaz[0][0], bhaz[0][1])
 xh = np.linspace(1, 40, 40)
-ha = [derivative(f, x, dx=0.5) for x in xh]
+ha = np.asarray([derivative(f, x, dx=0.5) for x in xh])
 plt.plot(xh, ha, '-')
+plt.grid(True)
+plt.xlabel("Years since purchase", size=15)
+plt.ylabel("Baseline hazard", size=15)
+pdf.savefig()
+
+# Plot the actual hazard function for purchases made in various years
+dd = pd.DataFrame({"year": [1970, 1980, 1990, 2000]})
+lhr = result.predict(exog=dd).predicted_values
+hr = np.exp(lhr)
+plt.clf()
+plt.axes([0.1, 0.1, 0.75, 0.8])
+for j in range(len(hr)):
+    plt.plot(xh, hr[j] * ha, label=str(dd.iloc[j,0]))
+ha, lb = plt.gca().get_legend_handles_labels()
+leg = plt.figlegend(ha, lb, 'center right')
+leg.draw_frame(False)
+plt.grid(True)
 plt.xlabel("Years since purchase", size=15)
 plt.ylabel("Hazard", size=15)
 pdf.savefig()
