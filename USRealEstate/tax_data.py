@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-dpath = "/nfs/turbo/arcts-dads-corelogic/Data/tax/0003.gz"
+dpath = "/nfs/turbo/arcts-dads-corelogic/Data/tax/0004.gz"
 
 dtp = {"CENSUS TRACT": str} #"SALE DATE (YYYYMMDD)": str}
 
