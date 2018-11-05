@@ -1,9 +1,5 @@
 import matplotlib
 matplotlib.use('Agg')
-
-import sys
-sys.path.insert(0, "/afs/umich.edu/user/k/s/kshedden/statsmodels_fork/statsmodels")
-
 import pandas as pd
 import numpy as np
 from tax_data import tax
