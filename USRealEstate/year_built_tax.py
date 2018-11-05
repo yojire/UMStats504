@@ -1,5 +1,9 @@
 import matplotlib
 matplotlib.use('Agg')
+
+import sys
+sys.path.insert(0, "/afs/umich.edu/user/k/s/kshedden/statsmodels_fork/statsmodels")
+
 import pandas as pd
 import numpy as np
 from tax_data import tax
@@ -42,74 +46,95 @@ nb = pd.merge(cp, nb, left_on=["fips", "year"], right_on=["fips", "year"])
 
 ydf = 6
 
-# Fit a Poisson model
-model = sm.GLM.from_formula("numbuilt ~ bs(year, %s) * logpop" % ydf, data=nb, family=sm.families.Poisson())
-result = model.fit()
+pdf = PdfPages("year_built.pdf")
 
-# Check the mean/variance relationship for the Poisson model
-qt = pd.qcut(result.fittedvalues, 50)
-dy = pd.DataFrame({"fit": result.fittedvalues, "obs": model.endog})
-qa = dy.groupby(qt).agg({"fit": np.mean, "obs": np.var})
+for fm in "", " * logpop":
+    qm = []
+    for alpha in 2**np.linspace(-3, 3, 10):
+        model = sm.GLM.from_formula("numbuilt ~ bs(year, %d)" % ydf + fm, data=nb, family=sm.families.NegativeBinomial(alpha=alpha))
+        result = model.fit()
+        qm.append([alpha, result.aic])
+    qm = np.asarray(qm)
+    plt.clf()
+    plt.axes([0.16, 0.13, 0.8, 0.8])
+    plt.title("Year" if fm == "" else "Year and population")
+    plt.plot(qm[:, 0], qm[:, 1])
+    plt.xlabel("Alpha", size=16)
+    plt.ylabel("AIC", size=16)
+    plt.grid(True)
+    pdf.savefig()
 
-for alpha in 0.25, 0.5, 0.75, 1, 1.25:
-    model = sm.GLM.from_formula("numbuilt ~ bs(year, %d) * logpop" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=alpha))
-    result = model.fit()
-    print(alpha, result.aic)
-
-model1 = sm.GEE.from_formula("numbuilt ~ bs(year, %d) * logpop" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=0.5),
-                            cov_struct=sm.cov_struct.Independence(), groups="fips")
+# Fit Poisson GLMs
+model0 = sm.GLM.from_formula("numbuilt ~ bs(year, %s)" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=3))
+result0 = model0.fit()
+model1 = sm.GLM.from_formula("numbuilt ~ bs(year, %s) * logpop" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=1))
 result1 = model1.fit()
 
-model2 = sm.GEE.from_formula("numbuilt ~ bs(year, %d) * logpop" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=0.5),
-                             cov_struct=sm.cov_struct.Stationary(max_lag=10), time=nb.year-1960, groups="fips")
-result2 = model2.fit(maxiter=5)
+for (model, result) in (model0, result0), (model1, result1):
 
-model3 = sm.GEE.from_formula("numbuilt ~ bs(year, %d) * logpop" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=0.5),
-                             cov_struct=sm.cov_struct.Exchangeable(), time=nb.year-1960, groups="fips")
+    # Check the mean/variance relationship for the Poisson model
+    qt = pd.qcut(result.fittedvalues, 40 if model is model1 else 20)
+    dy = pd.DataFrame({"fit": result.fittedvalues, "obs": model.endog})
+    qa = dy.groupby(qt).agg({"fit": np.mean, "obs": np.var})
+
+    # log mean / log variance plot
+    plt.clf()
+    xx = np.log(qa.fit)
+    plt.plot(xx, np.log(qa.obs), 'o')
+    x = np.linspace(1.05*xx.min(), 1.05*xx.max(), 10)
+    plt.plot(x, np.log(np.exp(x) + 0.5*np.exp(2*x)), '-')
+    plt.xlabel("Log mean", size=15)
+    plt.ylabel("Log variance", size=15)
+    plt.grid(True)
+    if result is result0:
+        plt.title("Adjust for year")
+    else:
+        plt.title("Adjust for year and population")
+    pdf.savefig()
+
+
+# Fit models controling for year only, or controlling for year and population (with full interactions).
+# Also fit using three different GEE covariance structures.
+
+model2 = sm.GEE.from_formula("numbuilt ~ bs(year, %d)" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=1),
+                            cov_struct=sm.cov_struct.Independence(), groups="fips")
+result2 = model2.fit()
+
+model3 = sm.GEE.from_formula("numbuilt ~ bs(year, %d)" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=1),
+                             cov_struct=sm.cov_struct.Stationary(max_lag=15), time=nb.year-1960, groups="fips")
 result3 = model3.fit(maxiter=5)
 
-model4 = sm.GEE.from_formula("numbuilt ~ bs(year, %d)" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=0.5),
+model4 = sm.GEE.from_formula("numbuilt ~ bs(year, %d)" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=1),
                              cov_struct=sm.cov_struct.Exchangeable(), time=nb.year-1960, groups="fips")
 result4 = model4.fit(maxiter=5)
 
-model5 = sm.GEE.from_formula("numbuilt ~ bs(year, %d) * logpop" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=0.5),
-                             cov_struct=sm.cov_struct.Exchangeable(), time=nb.year-1960, groups="fips")
-result5 = model5.fit(maxiter=5)
+model5 = sm.GEE.from_formula("numbuilt ~ bs(year, %d) * logpop" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=3),
+                            cov_struct=sm.cov_struct.Independence(), groups="fips")
+result5 = model5.fit()
 
-model6 = sm.GEE.from_formula("numbuilt ~ bs(year, %d) + logpop" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=0.5),
-                             cov_struct=sm.cov_struct.Exchangeable(), time=nb.year-1960, groups="fips")
+model6 = sm.GEE.from_formula("numbuilt ~ bs(year, %d) * logpop" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=3),
+                             cov_struct=sm.cov_struct.Stationary(max_lag=15), time=nb.year-1960, groups="fips")
 result6 = model6.fit(maxiter=5)
 
-model7 = sm.GEE.from_formula("numbuilt ~ bs(year, %d) + logpop" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=0.5),
-                             cov_struct=sm.cov_struct.Stationary(max_lag=10), time=nb.year-1960, groups="fips")
+model7 = sm.GEE.from_formula("numbuilt ~ bs(year, %d) * logpop" % ydf, data=nb, family=sm.families.NegativeBinomial(alpha=3),
+                             cov_struct=sm.cov_struct.Exchangeable(), time=nb.year-1960, groups="fips")
 result7 = model7.fit(maxiter=5)
 
+# Plot the estimated autocorrelations
+for result in result3, result6:
+    plt.clf()
+    plt.plot(result.cov_struct.dep_params)
+    plt.grid(True)
+    plt.gca().set_xticks(range(18))
+    plt.xlim(0, 15)
+    plt.xlabel("Lag (years)", size=15)
+    plt.ylabel("Autocorrelation", size=15)
+    pdf.savefig()
+
 from statsmodels.sandbox import predict_functional
-pred1, cb1, fvals1 = predict_functional.predict_functional(result1, "year", ci_method="simultaneous", values={"logpop": 10})
-pred2, cb2, fvals2 = predict_functional.predict_functional(result1, "year", ci_method="simultaneous", values={"logpop": 11})
-pred3, cb3, fvals3 = predict_functional.predict_functional(result1, "year", ci_method="simultaneous", values={"logpop": 12})
-
-pdf = PdfPages("year_built.pdf")
-
-# log mean / log variance plot
-plt.clf()
-plt.plot(np.log(qa.fit), np.log(qa.obs), 'o')
-x = np.linspace(-2, 4, 10)
-plt.plot(x, np.log(np.exp(x) + 0.5*np.exp(2*x)), '-')
-plt.xlabel("Log mean", size=15)
-plt.ylabel("Log variance", size=15)
-plt.grid(True)
-pdf.savefig()
-
-
-plt.clf()
-plt.plot(result2.cov_struct.dep_params)
-plt.grid(True)
-plt.gca().set_xticks(range(18))
-plt.xlim(0, 18)
-plt.xlabel("Lag (years)", size=15)
-plt.ylabel("Autocorrelation", size=15)
-pdf.savefig()
+pred1, cb1, fvals1 = predict_functional.predict_functional(result5, "year", ci_method="simultaneous", values={"logpop": 10})
+pred2, cb2, fvals2 = predict_functional.predict_functional(result5, "year", ci_method="simultaneous", values={"logpop": 11})
+pred3, cb3, fvals3 = predict_functional.predict_functional(result5, "year", ci_method="simultaneous", values={"logpop": 12})
 
 for k in range(2):
     plt.clf()
@@ -139,22 +164,11 @@ for k in range(2):
     plt.xlabel("Year", size=15)
     pdf.savefig()
 
-nb["resid"] = result1.resid_pearson
+# Get the residuals and pivot them to wide form (FIPS in rows, years in columns)
+nb["resid"] = result5.resid_pearson
 xt = nb.pivot("fips", "year", "resid")
-
-xm = np.asarray(pd.isnull(xt)).astype(np.int)
-x0 = np.asarray(xt.fillna(value=xt.mean().mean()))
-
-d = 3
-for k in range(5):
-    u,s,vt = np.linalg.svd(x0, 0)
-    u = u[:, 0:d]
-    s = s[0:d]
-    vt = vt[0:d, :]
-    xp = np.dot(u * s, vt)
-    x0 = xp*xm + x0*(1-xm)
-
-u,s,vt = np.linalg.svd(x0, 0)
+x0 = np.asarray(xt.fillna(value=xt.mean().mean())) # Simple mean imputation
+u, s, vt = np.linalg.svd(x0, 0)
 
 plt.clf()
 plt.title("Singular values of completed residuals")
