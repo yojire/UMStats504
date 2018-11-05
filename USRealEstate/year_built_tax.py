@@ -164,11 +164,16 @@ for k in range(2):
 nb["resid"] = result5.resid_pearson
 xt = nb.pivot("fips", "year", "resid")
 x0 = np.asarray(xt.fillna(value=xt.mean().mean())) # Simple mean imputation
+
 u, s, vt = np.linalg.svd(x0, 0)
+
+#from statsmodels.multivariate.factor import Factor
+#cc = np.corrcoef(x0.T)
+#fa = Factor(corr=cc, n_factor=5, method='ml').fit()
 
 plt.clf()
 plt.title("Singular values of completed residuals")
-plt.plot(1960 + np.arange(len(s)), s)
+plt.plot(s)
 plt.grid(True)
 plt.xlabel("Component", size=15)
 plt.ylabel("Singular value", size=15)
@@ -176,8 +181,8 @@ pdf.savefig()
 
 plt.clf()
 plt.title("Singular vectors of completed residuals")
-plt.plot(vt[0,:], label="1")
-plt.plot(vt[1,:], label="2")
+plt.plot(1960 + np.arange(len(s)), vt[0,:], label="1")
+plt.plot(1960 + np.arange(len(s)), vt[1,:], label="2")
 plt.grid(True)
 plt.xlabel("Year", size=15)
 plt.ylabel("Singular vector loading", size=15)
