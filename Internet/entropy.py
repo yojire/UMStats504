@@ -1,9 +1,9 @@
 """
 Calculate the entropy of network traffic over all ports, by minute.
 
-All files ending in the current directory named TTT.dports.csv.gz are processed,
-where TTT is a time index. These files should have 65536 ports, corresponding to
-all possible port numbers.
+All files in the 'results' directory named TTT.dports.csv.gz are processed,
+where TTT is a time index. These files should have 65536 columns, corresponding
+to the possible port numbers.
 
 Each row of an input file is a one-minute time block.
 
