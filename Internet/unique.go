@@ -22,7 +22,16 @@ var (
 
 func main() {
 
+	if len(os.Args) != 3 {
+		print("Usage: unique [flowtuple file name] [output directory]\n")
+		os.Exit(1)
+	}
+
 	fname := os.Args[1]
+	outdir := os.Args[2]
+	if err := os.MkdirAll(outdir, os.ModePerm); err != nil {
+		panic(err)
+	}
 
 	counts = make([]int, 60)
 	udpCounts = make([]int, 60)
@@ -38,6 +47,7 @@ func main() {
 		panic(err)
 	}
 	defer fid.Close()
+
 	gid, err := gzip.NewReader(fid)
 	if err != nil {
 		panic(err)
@@ -84,9 +94,10 @@ func main() {
 				counts[ftr.Inum()]++
 
 				// TCP and UDP traffic per minute
-				if frec.Protocol == 6 {
+				switch frec.Protocol {
+				case 6:
 					tcpCounts[ftr.Inum()]++
-				} else if frec.Protocol == 17 {
+				case 17:
 					udpCounts[ftr.Inum()]++
 				}
 
@@ -117,21 +128,27 @@ func main() {
 		}
 	}
 
+	// Write the packet counts by minute, for all traffic, TCP traffic, and UDP traffic.  Also
+	// save the number of unique source IP addresses seen per minute.
 	outname := path.Base(fname)
 	outname = strings.Replace(outname, "ucsd-nt.anon.", "", 1)
 	outname = strings.Replace(outname, "flowtuple.cors.gz", "csv", 1)
+	outname = path.Join(outdir, outname)
 	out, err := os.Create(outname)
 	if err != nil {
 		panic(err)
 	}
 	defer out.Close()
+	io.WriteString(out, "Minute,Packets,Sources,UDP,TCP\n")
 	for k := 0; k < 60; k++ {
 		out.WriteString(fmt.Sprintf("%d,%d,%d,%d,%d\n", k, counts[k], sources[k], udpCounts[k], tcpCounts[k]))
 	}
 
+	// Write the packet counts per port
 	outname = path.Base(fname)
 	outname = strings.Replace(outname, "ucsd-nt.anon.", "", 1)
 	outname = strings.Replace(outname, "flowtuple.cors.gz", "dports.csv.gz", 1)
+	outname = path.Join(outdir, outname)
 	out, err = os.Create(outname)
 	if err != nil {
 		panic(err)
