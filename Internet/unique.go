@@ -1,3 +1,12 @@
+/*
+unique takes a one-hour flowtuple file and calculates several statistics
+on the traffice within one-minute blocks.
+
+The usage is:
+
+> unique [flowtuple file name] [results directory name]
+*/
+
 package main
 
 import (
@@ -13,11 +22,20 @@ import (
 )
 
 var (
-	counts    []int
+	// Total packets per minute
+	counts []int
+
+	// UDP packets per minute
 	udpCounts []int
+
+	// TCP packets per minute
 	tcpCounts []int
-	sources   []int
-	ports     [][]int
+
+	// Distinct IP source addresses per minute
+	sources []int
+
+	// Packets per port per minute
+	ports [][]int
 )
 
 func main() {
@@ -64,6 +82,7 @@ func main() {
 
 	var frec flowtuple.FlowRec
 
+	// Loop over the intervals (one minute time blocks)
 	for {
 		err := ftr.ReadIntervalHead()
 		if err == io.EOF {
