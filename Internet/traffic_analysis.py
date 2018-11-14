@@ -92,7 +92,7 @@ for k in range(3):
         plt.plot(x, f[j, k, k:], label=df.columns[j])
     plt.xlabel("Minutes", size=15)
     plt.ylabel("Tau-autocorrelation", size=15)
-    plt.title("Lag %d" % k)
+    plt.title("Order %d differences" % k)
     ha,lb = plt.gca().get_legend_handles_labels()
     leg = plt.figlegend(ha, lb, "upper center", ncol=4)
     leg.draw_frame(False)
