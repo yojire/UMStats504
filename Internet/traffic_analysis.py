@@ -98,7 +98,6 @@ for k in range(3):
     leg.draw_frame(False)
     pdf.savefig()
 
-
 # Calculate the Hurst index using means and variances.
 def hurst(x):
     z = []
@@ -134,18 +133,26 @@ for j, x in enumerate([df.Traffic, df.Sources, df.UDP, df.TCP]):
         z -= z.mean()
         print("    %4d %7.3f %7.3f" % (diffo, hurst(z), hurstabs(z)))
 
+# Use regularized regression to study the autoregressive structure of the
+# traffic and unique sources series.
+
 from numpy.lib.stride_tricks import as_strided
 import statsmodels.api as sm
 
 labs = ["Traffic", "Sources", "UDP", "TCP"]
 for j,x in enumerate([df.Traffic, df.Sources, df.UDP, df.TCP]):
+
     x = np.asarray(x)
     x = np.log(x)
     x -= x.mean()
+
+    # This is a trick to lag the data without copying
     z = as_strided(x, shape=(len(x)-30, 30), strides=(8, 8))
+
     y = z[:, 0]
     x = z[:, 1:30]
 
+    # Use four approaches to regression
     for jj in 0, 1, 2, 3:
 
         params = []
