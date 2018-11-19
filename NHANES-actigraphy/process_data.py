@@ -1,0 +1,39 @@
+"""
+This script processes the NHANES actigraphy data into a
+csv file.  Note that the resulting file will be too small
+to read into memory on most computers.
+
+Documentation:
+https://wwwn.cdc.gov/Nchs/Nhanes/2003-2004/PAXRAW_C.htm
+
+Get the data:
+wget https://wwwn.cdc.gov/Nchs/Nhanes/2003-2004/PAXRAW_C.ZIP
+"""
+
+import pandas as pd
+import gzip
+import numpy as np
+
+r = gzip.open("paxraw_c.xpt.gz")
+rdr = pd.read_sas(r, format="xport", chunksize=1000000)
+
+out = gzip.open("paxraw.csv.gz", "wt")
+first = True
+
+jj = 0
+while True:
+
+    try:
+        df = next(rdr)
+    except StopIteration:
+        break
+
+    df = df.astype(np.int)
+
+    out.write(df.to_csv(header=first, index=False))
+    first = False
+
+    jj += df.shape[0]
+    print(rdr.nobs - jj)
+
+out.close()
