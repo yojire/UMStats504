@@ -15,7 +15,7 @@ import gzip
 import numpy as np
 
 r = gzip.open("paxraw_c.xpt.gz")
-rdr = pd.read_sas(r, format="xport", chunksize=1000000)
+rdr = pd.read_sas(r, format="xport", chunksize=10000000)
 
 out = gzip.open("paxraw.csv.gz", "wt")
 first = True
@@ -35,5 +35,6 @@ while True:
 
     jj += df.shape[0]
     print(rdr.nobs - jj)
+    print(df.shape)
 
 out.close()
