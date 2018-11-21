@@ -57,7 +57,7 @@ lk = np.log10(1 + np.arange(eivals.shape[1]))
 for i in range(eivals.shape[0]):
     plt.plot(lk, np.log10(eivals[i, :]), color='grey', alpha=0.5)
 plt.xlabel(r"$\log\, k$", size=16)
-plt.ylabel(r"$\lambda_k$", size=16)
+plt.ylabel(r"$\log\, \lambda_k$", size=16)
 pdf.savefig()
 
 # Get the spectrum of the average covariance matrix
@@ -74,7 +74,7 @@ plt.grid(True)
 lk = np.log10(1 + np.arange(len(eiv)))
 plt.plot(lk, np.log10(eiv), color='grey', alpha=0.5)
 plt.xlabel(r"$\log\, k$", size=16)
-plt.ylabel(r"$\lambda_k$", size=16)
+plt.ylabel(r"$\log\, \lambda_k$", size=16)
 pdf.savefig()
 
 # Plot the eigenvalues of some individual covariance matrices
