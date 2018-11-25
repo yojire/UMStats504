@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from data import df
@@ -36,14 +37,14 @@ mgee = sm.GEE.from_formula(fml0, groups="PC_number", cov_struct=sm.cov_struct.Ex
 rgee = mgee.fit()
 
 # Use nested GEE to look at clustering of PS data within PC, and PC within districts.
-mgee2 = sm.GEE.from_formula(fml0, groups="Province_x", cov_struct=sm.cov_struct.Nested(),
-                            dep_data=df[["District_x", "PC_number"]], data=df)
+mgee2 = sm.GEE.from_formula(fml0, groups="Province", cov_struct=sm.cov_struct.Nested(),
+                            dep_data=df[["District", "PC_number"]], data=df)
 rgee2 = mgee2.fit()
 
 df[candidates1] = np.log(1 + df[candidates1])
 df[candidates2] = np.log(1 + df[candidates2])
 
-mlm = sm.MixedLM.from_formula(fml0, groups="Province_x",
-                            re_formula="1", vc_formula={"district": "0+C(District_x)", "pc": "0+C(PC_number)"}, data=df)
+mlm = sm.MixedLM.from_formula(fml0, groups="Province",
+                            re_formula="1", vc_formula={"district": "0+C(District)", "pc": "0+C(PC_number)"}, data=df)
 rml = mlm.fit()
 

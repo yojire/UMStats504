@@ -33,3 +33,6 @@ df2 = df2.rename(columns={'province': 'Province', 'district': 'District',
 
 df = pd.merge(df1, df2, left_index=True, right_index=True, how='outer')
 df = df.reset_index()
+
+df = df.rename(columns={"District_x": "District", "Province_x": "Province"})
+df = df.drop(["District_y", "Province_y"], axis=1)
