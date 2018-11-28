@@ -19,7 +19,7 @@ for i in range(4):
     plt.plot(df.iloc[:, 2+i])
     plt.grid(True)
     plt.xlabel("Minutes", size=15)
-    plt.ylabel(df.columns[i], size=15)
+    plt.ylabel(df.columns[2+i], size=15)
     pdf.savefig()
 
 # Plot the quantile functions for the four columns.
@@ -30,7 +30,7 @@ for i in range(4):
     plt.plot(pp, np.sort(df.iloc[:, 2+i]))
     plt.grid(True)
     plt.xlabel("Probability point", size=15)
-    plt.ylabel(df.columns[i] + " quantile", size=15)
+    plt.ylabel(df.columns[2+i] + " quantile", size=15)
     pdf.savefig()
 
 # Plot the entropy data
