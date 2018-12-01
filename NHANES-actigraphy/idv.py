@@ -1,5 +1,6 @@
 """
-Intra-daily variation
+Small demonstration using intra-daily variation (IDV) with the NHANES
+actigraphy data.
 """
 
 import numpy as np
