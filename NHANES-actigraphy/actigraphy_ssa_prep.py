@@ -1,5 +1,5 @@
 """
-Compute the eigenvalues from a Singular spectrum analysis (SSA) of the NHANES
+Compute the eigenvalues from a Singular Spectrum Analysis (SSA) of the NHANES
 actigraphy data, and save them to a file.
 """
 
