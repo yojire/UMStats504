@@ -7,6 +7,10 @@ older, younger : subject ids (corresponding to columns of df) for older and
   younger subjects
 
 women, men : subect ids for women and men
+
+The raw data can be obtained here:
+
+https://www.ncbi.nlm.nih.gov/sites/GDSbrowser?acc=GDS4858
 """
 
 import gzip
