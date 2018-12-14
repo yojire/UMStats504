@@ -1,5 +1,6 @@
 """
-Singular spectrum analysis (SSA) of the NHANES actigraphy data
+Small demonstration using Singular Spectrum Analysis (SSA)
+of the NHANES actigraphy data.
 """
 
 import numpy as np
